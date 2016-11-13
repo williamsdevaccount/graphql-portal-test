@@ -40,8 +40,12 @@
     "express-graphql": "^0.6.1",
     "graphql": "^0.8.1",
     "jsonwebtoken": "^7.1.9",
+    "le-challenge-fs": "^2.0.8",
+    "le-store-certbot": "^2.0.3",
+    "letsencrypt-express": "^2.0.5",
     "mongodb": "^2.2.11",
     "pify": "^2.3.0",
+    "redirect-https": "^1.1.0",
     "require-dir": "^0.3.1"
   },
   "devDependencies": {
@@ -58,6 +62,7 @@
     "eslint-plugin-promise": "^3.0.0",
     "eslint-plugin-standard": "^2.0.1",
     "eslint-watch": "^2.1.14",
+    "localhost.daplie.com-certificates": "^1.2.3",
     "mocha": "^3.1.2",
     "nyc": "^8.4.0",
     "parallelshell": "^2.0.0",

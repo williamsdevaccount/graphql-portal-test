@@ -1,15 +1,18 @@
+import http from 'http'
+import https from 'https'
+import redirectHttps from 'redirect-https'
 import express from 'express'
 import bodyParser from 'body-parser'
 import graphqlHTTP from 'express-graphql'
+import {lexMiddleware, httpsOptions, httpsHost} from './lex'
 import schema from './schema'
 import {connectDB, manageDBIndexes, closeDBconnection} from './models'
 import logger from './logger'
 import {getEnvProp} from './env'
 
-const PORT = getEnvProp('PORT')
 const app = express()
 let shuttingDown = false
-let server
+let httpServer, httpsServer
 
 // graceful shutdown handler
 app.use((req, resp, next) => {
@@ -47,10 +50,20 @@ app.use((err, req, res, next) => {
 export async function startServer () {
   await connectDB()
   await manageDBIndexes()
-  await new Promise((resolve) => {
-    server = app.listen(PORT, resolve)
-  })
-  logger.log(`Example app listening on port ${PORT}!`)
+  const httpPort = getEnvProp('SERVER_HTTP_PORT')
+  const httpServerLocation = httpsHost ? `http://${httpsHost}:${httpPort}` : httpPort
+  const httpsPort = getEnvProp('SERVER_HTTPS_PORT')
+  const httpsServerLocation = httpsHost ? `https://${httpsHost}:${httpsPort}` : httpsPort
+  await Promise.all([
+    new Promise((resolve) => {
+      httpServer = http.createServer(lexMiddleware(redirectHttps({port: httpsPort}))).listen(httpPort, resolve)
+    }),
+    new Promise((resolve) => {
+      httpsServer = https.createServer(httpsOptions, lexMiddleware(app)).listen(httpsPort, resolve)
+    })
+  ])
+  logger.log(`Listening for ACME http-01 challenges on ${httpServerLocation}`)
+  logger.log(`Listening for ACME tls-sni-01 challenges and serve app on ${httpsServerLocation}`)
 }
 
 // graceful shutdown
@@ -58,7 +71,8 @@ export async function stopServer (exit) {
   shuttingDown = true
   const winner = await Promise.race([
     Promise.all([
-      new Promise((resolve) => server ? server.close(resolve) : resolve()),
+      new Promise((resolve) => httpServer ? httpServer.close(resolve) : resolve()),
+      new Promise((resolve) => httpsServer ? httpsServer.close(resolve) : resolve()),
       closeDBconnection()
     ]),
     new Promise((resolve) => setTimeout(resolve, 30 * 1000, 'timeout'))
